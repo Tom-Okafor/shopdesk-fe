@@ -25,8 +25,17 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import useTableAreaHeight from "./hooks/useTableAreaHeight";
-import { log } from "console";
+import { useStore } from "@/store/useStore";
 
+type OrganizationNameInitial = (orgName: string) => string;
+
+const getOrganizationNameInitial: OrganizationNameInitial = (
+  orgName: string
+) => {
+  return orgName.split(" ").reduce((acc: string, string) => {
+    return acc + string[0];
+  }, "");
+};
 const Page = () => {
   type StockItem = {
     id: number;
@@ -35,26 +44,36 @@ const Page = () => {
     quantity: number;
   };
 
+  interface Organization {
+    id: string;
+    name: string;
+  }
   const { tableAreaRef, tableAreaHeight } = useTableAreaHeight();
   const rowsPerPage = Math.round(tableAreaHeight / 55) - 3;
 
   const [isOpen, setIsOpen] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openAdd, setOpenAdd] = useState(false);
+  const [loadingOrganization, setLoadingOrganization] = useState(true);
 
-  //const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState<{
+    id: number;
+    name: string;
+    price: number;
+    quantity: number;
+  } | null>(null);
   const [user, setUser] = useState<any>(null);
   const openModal = () => setIsOpen(true);
   const closeModal = () => setIsOpen(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const [stockItems, setStockItems] = useState<StockItem[]>([
-    { id: 1, name: "Solace Recliner", price: 50, quantity: 40 },
-  ]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const organization = useStore((state) => state.organization);
+  const setOrganization = useStore((state) => state.setOrganization);
 
   useEffect(() => {
     const token = sessionStorage.getItem("refresh_token");
@@ -63,35 +82,61 @@ const Page = () => {
     } else {
       setIsLoading(false);
     }
-
-    async function getOrganizations() {
-      const API_URL = "/dashboard/api/organizations";
-      const token = sessionStorage.getItem("access_token");
-      if (!token) {
-        throw new Error("Access token is missing");
-      }
-      try {
-        const response = await fetch(API_URL, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        });
-        if (!response.ok)
-          throw new Error("Request failed with status" + response.status);
-        const data = await response.json();
-        console.log(data);
-      } catch (error) {
-        console.error("Error fetching organizations", error);
-        return null;
-      }
-    }
     getOrganizations();
   }, [router]);
 
-  const handleEditClick = () => {
-    // setSelectedItem(item);
-    setOpenEdit(true);
+  async function getOrganizations() {
+    const API_URL = "/dashboard/api/organizations";
+    const token = sessionStorage.getItem("access_token");
+    if (!token) {
+      throw new Error("Access token is missing");
+    }
+    try {
+      const response = await fetch(API_URL, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      if (!response.ok)
+        throw new Error("Request failed with status" + response.status);
+      const data: { data: Organization[] } = await response.json();
+      const organizationData: Organization[] = data.data.map(
+        (eachOrganization: Organization) => {
+          return { name: eachOrganization.name, id: eachOrganization.id };
+        }
+      );
+      setOrganization(organizationData);
+      console.log(data);
+    } catch (error) {
+      console.error("Error fetching organizations", error);
+      return null;
+    } finally {
+      setLoadingOrganization(false);
+    }
+  }
+
+  const handleEditClick = (item: {
+    id: number;
+    name: string;
+    price: number;
+    quantity: number;
+  }) => {
+    setSelectedItem(item); // Set the selected item
+    setOpenEdit(true); // Open the edit modal
+  };
+
+  const handleSaveEdit = (updatedItem: {
+    id: number;
+    name: string;
+    price: number;
+    quantity: number;
+  }) => {
+    setStockItems((prev) =>
+      prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+    );
+
+    setOpenEdit(false); // Close the edit modal
   };
 
   const handleAddClick = () => {
@@ -99,8 +144,14 @@ const Page = () => {
     setOpenAdd(true);
   };
 
-  const handleDeleteClick = () => {
-    // setSelectedItem(item);
+  const handleDeleteClick = (item: {
+    id: number;
+    name: string;
+    price: number;
+    quantity: number;
+  }) => {
+    setSelectedItem(item);
+
     setIsDeleteModalOpen(true);
   };
 
@@ -116,6 +167,9 @@ const Page = () => {
 
   const handleDeleteItem = () => {
     setIsDeleteModalOpen(false);
+    setStockItems((prev) =>
+      prev.filter((item) => item.id !== selectedItem?.id)
+    );
   };
 
   if (isLoading) {
@@ -127,8 +181,8 @@ const Page = () => {
   }
 
   return (
-    <main className="px-6 py-4 w-full max-w-7xl mx-auto flex flex-col h-svh">
-      <div ref={tableAreaRef} className="space-y-8 w-full h-full">
+    <main className="px-6 py-4 w-full max-w-7xl mx-auto flex flex-col main-h-svh ">
+      <div ref={tableAreaRef} className="space-y-8 w-full h-full ">
         <LogoutConfirmModal
           open={isLogoutModalOpen}
           onOpenChange={setIsLogoutModalOpen}
@@ -151,11 +205,16 @@ const Page = () => {
           </div>
           <div className="hidden lg:block">
             <DropdownMenu modal>
-              <DropdownMenuTrigger className="btn-primary hover:cursor-pointer hidden lg:flex items-center gap-2 text-white">
-                <span className="py-2 px-4 rounded-lg bg-white text-black">
-                  MM
+              <DropdownMenuTrigger className="btn-primary hover:cursor-pointer hidden lg:flex items-center gap-2 text-white uppercase">
+                <span className="py-2 px-4 rounded-lg bg-white text-black ">
+                  {loadingOrganization
+                    ? ""
+                    : getOrganizationNameInitial(
+                        organization?.[0]?.name ?? ""
+                      ) || "N/A"}
                 </span>
-                Mark M <ChevronDown strokeWidth={1.5} color="white" />
+                {loadingOrganization ? "loading..." : organization?.[0]?.name}{" "}
+                <ChevronDown strokeWidth={1.5} color="white" />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem
@@ -236,7 +295,15 @@ const Page = () => {
                       >
                         + Add New Stock
                       </button>
-                      <ShopDeskModal isOpen={isOpen} onClose={closeModal} />
+                      <ShopDeskModal
+                        isOpen={isOpen}
+                        onClose={closeModal}
+                        onSave={(newItem) => {
+                          setStockItems((prev) => [...prev, newItem]);
+
+                          closeModal();
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -274,7 +341,9 @@ const Page = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Array.from({ length: rowsPerPage }).map((_, index) => {
+                  {Array.from({
+                    length: Math.max(rowsPerPage, stockItems.length),
+                  }).map((_, index) => {
                     const item = stockItems[index] || null;
                     return (
                       <TableRow key={index} className="h-[50px]">
@@ -294,10 +363,14 @@ const Page = () => {
                                 <MoreVertical className="cursor-pointer" />
                               </DropdownMenuTrigger>
                               <DropdownMenuContent>
-                                <DropdownMenuItem onClick={handleEditClick}>
+                                <DropdownMenuItem
+                                  onClick={() => handleEditClick(item)}
+                                >
                                   Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleDeleteClick}>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteClick(item)}
+                                >
                                   Delete
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -316,8 +389,22 @@ const Page = () => {
         </div>
       </div>
 
-      <EditItemModal isOpen={openEdit} onClose={closeEditModal} />
-      <AddItemModal isOpen={openAdd} onClose={closeAddModal} />
+      <EditItemModal
+        isOpen={openEdit}
+        onClose={closeEditModal}
+        item={selectedItem!}
+        onSave={handleSaveEdit}
+      />
+
+      <AddItemModal
+        isOpen={openAdd}
+        onClose={closeAddModal}
+        onSave={(newItem) => {
+          setStockItems((prev) => [...prev, newItem]);
+
+          closeModal();
+        }}
+      />
 
       <p className="text-center mt-4">
         © {new Date().getFullYear()}, Powered by Timbu Business
