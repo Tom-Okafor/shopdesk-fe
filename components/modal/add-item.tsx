@@ -9,6 +9,7 @@ import {
   FaTimes,
 } from "react-icons/fa";
 
+
 const currencies = [
   {
     name: "Nigerian Naira",
@@ -56,6 +57,7 @@ interface ShopDeskModalProps {
     name: string;
     price: number;
     quantity: number;
+    currency: string;
   }) => void;
 }
 
@@ -113,6 +115,7 @@ export default function ShopDeskModal({
         name: productName,
         price: parseFloat(sellingPrice),
         quantity: quantity,
+        currency: selectedSellingCurrency.code,
       });
       onClose();
     }
@@ -287,9 +290,10 @@ export default function ShopDeskModal({
                 )}
               </div>
               {errors.sellingPrice && (
-                  <p className="text-[#FF1925] text-sm font-circular-normal">
-                    {errors.sellingPrice}
-                  </p>)}
+                <p className="text-[#FF1925] text-sm font-circular-normal">
+                  {errors.sellingPrice}
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-[8px]">
               <label className="font-circular-normal text-[14px] text-[#1B1B1B] text-left">
@@ -329,7 +333,8 @@ export default function ShopDeskModal({
 
                 <button
                   className="h-[48px] md:h-[62px] w-[48px] md:w-[62px] flex items-center justify-center border border-[#1B1B1B] rounded-[9px] cursor-pointer hover:bg-[#D0D0D0]"
-                  onClick={increment} type="button"
+                  onClick={increment}
+                  type="button"
                 >
                   <FaPlus className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
@@ -340,31 +345,31 @@ export default function ShopDeskModal({
                 </p>
               )}
             </div>
-                <div className="md:bg-[#F6F8FA] md:border md:border-[#DEE5ED] rounded-bl-[12px] rounded-br-[12px] w-full p-4">
-          <div className="flex flex-col-reverse md:flex-row justify-end gap-4 w-full">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full md:w-auto bg-white border md:border-[#1B1B1B] border-[#E50000] md:text-black text-[#FF000D] px-[24px] py-[12px] rounded-[12px] hover:bg-[#D0D0D0]"
-            >
-              Cancel
-            </button>
-            <button
-              //submit button (should be inside form ,will change after design changes)
-              type="submit"
-              className={`w-full md:w-auto px-[24px] py-[12px] rounded-[12px] border ${
-                isFormValid()
-                  ? "bg-black text-white border-black"
-                  : "bg-[#D0D0D0] text-[#F1F1F1] border-[#B8B8B8]"
-              }`}
-              disabled={!isFormValid()}
-            >
-              <span className="md:hidden">Save</span>
+            <div className="md:bg-[#F6F8FA] md:border md:border-[#DEE5ED] rounded-bl-[12px] rounded-br-[12px] w-full p-4">
+              <div className="flex flex-col-reverse md:flex-row justify-end gap-4 w-full">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full md:w-auto bg-white border md:border-[#1B1B1B] border-[#E50000] md:text-black text-[#FF000D] px-[24px] py-[12px] rounded-[12px] hover:bg-[#D0D0D0]"
+                >
+                  Cancel
+                </button>
+                <button
+                  //submit button (should be inside form ,will change after design changes)
+                  type="submit"
+                  className={`w-full md:w-auto px-[24px] py-[12px] rounded-[12px] border ${
+                    isFormValid()
+                      ? "bg-black text-white border-black"
+                      : "bg-[#D0D0D0] text-[#F1F1F1] border-[#B8B8B8]"
+                  }`}
+                  disabled={!isFormValid()}
+                >
+                  <span className="md:hidden">Save</span>
 
-              <span className="hidden md:inline">Add Stock</span>
-            </button>
-          </div>
-        </div>
+                  <span className="hidden md:inline">Add Stock</span>
+                </button>
+              </div>
+            </div>
           </form>
         </div>
       </div>

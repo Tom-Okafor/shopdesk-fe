@@ -1,6 +1,6 @@
 "use client";
 import ShopDeskModal from "@/components/modal/add-item";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { ChevronDown, MoreVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EditItemModal from "@/components/modal/edit-stock";
@@ -48,6 +48,15 @@ const Page = () => {
     id: string;
     name: string;
   }
+
+  interface RequestBody {
+    name: string;
+    quantity: number;
+    buying_price: number;
+    currency_code: string;
+    product_id: string;
+    organization_id: string;
+  }
   const { tableAreaRef, tableAreaHeight } = useTableAreaHeight();
   const rowsPerPage = Math.round(tableAreaHeight / 55) - 3;
 
@@ -75,23 +84,7 @@ const Page = () => {
 
   const { organization, setOrganization, productId, setProductId } = useStore();
 
-  useEffect(() => {
-    const token = sessionStorage.getItem("refresh_token");
-    if (!token) {
-      router.replace("/sign-in");
-    } else {
-      setIsLoading(false);
-    }
-    getOrganizations();
-  }, [router]);
-
-  useEffect(() => {
-    if (organization?.length) {
-      getProducts();
-    }
-  }, [organization]);
-
-  async function getOrganizations() {
+  const getOrganizations = useCallback(async () => {
     const API_URL = "/dashboard/api/organizations";
     const token = sessionStorage.getItem("access_token");
     if (!token) {
@@ -120,9 +113,10 @@ const Page = () => {
     } finally {
       setLoadingOrganization(false);
     }
-  }
+  }, []);
 
-  async function getProducts() {
+  const getProducts = useCallback(async () => {
+    if (!organization?.length) return;
     const token = sessionStorage.getItem("access_token");
     if (!token) {
       throw new Error("Authorization token is required");
@@ -143,7 +137,6 @@ const Page = () => {
         throw new Error("Request failed with status " + response.status);
       const data = await response.json();
       const result = data.items?.[0]?.id;
-      console.log(result);
       setProductId(result);
     } catch (error) {
       if (error instanceof Error) {
@@ -157,7 +150,77 @@ const Page = () => {
 
       return null;
     }
-  }
+  }, [organization]);
+
+  const addStock = useCallback(
+    async (
+      name: string,
+      price: number,
+      quantity: number,
+      currencyCode: string
+    ) => {
+      if (!organization?.[0]?.id || !productId) return;
+      const token = sessionStorage.getItem("access_token");
+      if (!token) {
+        throw new Error("Authorization token is required");
+      }
+      if (!organization?.[0]?.id)
+        throw new Error("Organization id is required");
+      if (!productId) throw new Error("Product id is required");
+      const organization_id = organization?.[0]?.id;
+      const product_id = productId;
+      const body: RequestBody = {
+        name: name,
+        buying_price: price,
+        quantity: quantity,
+        currency_code: currencyCode,
+        organization_id,
+        product_id,
+      };
+      const apiUrl = "dashboard/api/stocks";
+      try {
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        });
+        if (!response.ok)
+          throw new Error(`Request failed with status ${response.status}`);
+        const data = await response.json();
+        console.log(data);
+      } catch (error) {
+        if (error instanceof Error) {
+          console.log("Error Adding Stock", {
+            message: error.message,
+            stack: error.stack,
+          });
+        } else {
+          console.error("Error Adding Stock", error);
+        }
+        return null;
+      }
+    },
+    [organization, productId]
+  );
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("refresh_token");
+    if (!token) {
+      router.replace("/sign-in");
+    } else {
+      setIsLoading(false);
+    }
+    getOrganizations();
+  }, [router, getOrganizations]);
+
+  useEffect(() => {
+    if (organization?.length) {
+      getProducts();
+    }
+  }, [organization, getProducts]);
 
   const handleEditClick = (item: {
     id: number;
@@ -343,6 +406,12 @@ const Page = () => {
                         onClose={closeModal}
                         onSave={(newItem) => {
                           setStockItems((prev) => [...prev, newItem]);
+                          addStock(
+                            newItem.name,
+                            newItem.price,
+                            newItem.quantity,
+                            newItem.currency
+                          );
 
                           closeModal();
                         }}
@@ -444,7 +513,12 @@ const Page = () => {
         onClose={closeAddModal}
         onSave={(newItem) => {
           setStockItems((prev) => [...prev, newItem]);
-
+          addStock(
+            newItem.name,
+            newItem.price,
+            newItem.quantity,
+            newItem.currency
+          );
           closeModal();
         }}
       />

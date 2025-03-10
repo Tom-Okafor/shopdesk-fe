@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface Organization {
   id: string;
@@ -16,17 +17,38 @@ interface State {
   setStock: (stock: Record<string, unknown>[]) => void;
   selectedStock: Record<string, unknown> | null;
   setSelectedStock: (selectedStock: Record<string, unknown> | null) => void;
+  stockName: string;
+  setStockName: (stockNamec: string) => void;
+  price: string;
+  setPrice: (price: string) => void;
+  currency: string;
+  setCurrency: (currency: string) => void;
+  quantity: string;
+  setQuantity: (quantity: string) => void;
 }
 
-export const useStore = create<State>((set) => ({
-  access: "",
-  setAccess: (access) => set({ access }),
-  organization: null,
-  setOrganization: (organization) => set({ organization }),
-  productId: null,
-  setProductId: (productId) => set({ productId }),
-  stock: [],
-  setStock: (stock) => set({ stock }),
-  selectedStock: null,
-  setSelectedStock: (selectedStock) => set({ selectedStock }),
-}));
+export const useStore = create<State>()(
+  persist(
+    (set) => ({
+      access: "",
+      setAccess: (access) => set({ access }),
+      organization: null,
+      setOrganization: (organization) => set({ organization }),
+      productId: null,
+      setProductId: (productId) => set({ productId }),
+      stock: [],
+      setStock: (stock) => set({ stock }),
+      selectedStock: null,
+      setSelectedStock: (selectedStock) => set({ selectedStock }),
+      stockName: "",
+      setStockName: (stockName) => set({ stockName }),
+      price: "",
+      setPrice: (price) => set({ price }),
+      currency: "",
+      setCurrency: (currency) => set({ currency }),
+      quantity: "",
+      setQuantity: (quantity) => set({ quantity }),
+    }),
+    { name: "my-store", skipHydration: true }
+  )
+);
