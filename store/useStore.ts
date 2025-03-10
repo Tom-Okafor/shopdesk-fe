@@ -10,6 +10,8 @@ interface State {
   setAccess: (access: string) => void;
   organization: Organization[] | null;
   setOrganization: (organization: Organization[]) => void;
+  productId: string | null;
+  setProductId: (productId: string) => void;
   stock: Record<string, unknown>[];
   setStock: (stock: Record<string, unknown>[]) => void;
   selectedStock: Record<string, unknown> | null;
@@ -21,6 +23,8 @@ export const useStore = create<State>((set) => ({
   setAccess: (access) => set({ access }),
   organization: null,
   setOrganization: (organization) => set({ organization }),
+  productId: null,
+  setProductId: (productId) => set({ productId }),
   stock: [],
   setStock: (stock) => set({ stock }),
   selectedStock: null,

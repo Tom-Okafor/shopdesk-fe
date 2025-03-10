@@ -72,8 +72,8 @@ const Page = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const organization = useStore((state) => state.organization);
-  const setOrganization = useStore((state) => state.setOrganization);
+
+  const { organization, setOrganization, productId, setProductId } = useStore();
 
   useEffect(() => {
     const token = sessionStorage.getItem("refresh_token");
@@ -84,6 +84,12 @@ const Page = () => {
     }
     getOrganizations();
   }, [router]);
+
+  useEffect(() => {
+    if (organization?.length) {
+      getProducts();
+    }
+  }, [organization]);
 
   async function getOrganizations() {
     const API_URL = "/dashboard/api/organizations";
@@ -99,7 +105,7 @@ const Page = () => {
         },
       });
       if (!response.ok)
-        throw new Error("Request failed with status" + response.status);
+        throw new Error("Request failed with status " + response.status);
       const data: { data: Organization[] } = await response.json();
       const organizationData: Organization[] = data.data.map(
         (eachOrganization: Organization) => {
@@ -113,6 +119,43 @@ const Page = () => {
       return null;
     } finally {
       setLoadingOrganization(false);
+    }
+  }
+
+  async function getProducts() {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) {
+      throw new Error("Authorization token is required");
+    }
+    if (!organization?.[0]?.id) throw new Error("Organization id is required");
+
+    const apiUrl = `/dashboard/api/products?organization_id=${organization?.[0]?.id}`;
+    try {
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok)
+        throw new Error("Request failed with status " + response.status);
+      const data = await response.json();
+      const result = data.items?.[0]?.id;
+      console.log(result);
+      setProductId(result);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error fetching products", {
+          message: error.message,
+          stack: error.stack,
+        });
+      } else {
+        console.error("Error fetching products", error);
+      }
+
+      return null;
     }
   }
 
