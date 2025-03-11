@@ -402,7 +402,7 @@ const Page = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem
-                  className="w-full px-[5rem] hidden lg:block"
+                  className="w-full px-[5rem] hidden"
                   onClick={() => setIsLogoutModalOpen(true)}
                 >
                   Log out
