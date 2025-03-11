@@ -57,6 +57,23 @@ export type StockItem = {
 };
 
 const Page = () => {
+  type StockItem = {
+    id: string;
+    name: string;
+    buying_price: number;
+    quantity: number;
+    currency_code: string;
+    sku_code: string;
+    buying_date?: string;
+    product_id?: string;
+    status?: string;
+    user_id?: string;
+    date_created?: string;
+    original_quantity?: number;
+    supplier?: null | any;
+    timeslots?: any[];
+  };
+
   const { tableAreaRef, tableAreaHeight } = useTableAreaHeight();
   const rowsPerPage = Math.round(tableAreaHeight / 55) - 3;
 
@@ -366,6 +383,7 @@ const Page = () => {
           onCancel={() => setIsDeleteModalOpen(false)}
           onDelete={handleDeleteItem}
           selectedItem={selectedItem || undefined}
+          includeSkuCode
         />
         <div className="lg:border px-4 py-2 lg:shadow-md rounded-lg lg:flex items-center justify-between mx-auto">
           <div className="flex items-center gap-6">
@@ -422,6 +440,7 @@ const Page = () => {
                   onSave={(newItem) => {
                     setStockItems((prev) => [newItem, ...prev]);
                     closeModal();
+                    includeSkuCode
                   }}
                 />
               </div>
@@ -437,6 +456,9 @@ const Page = () => {
                         ITEM NAME
                       </span>
                     </li>
+                    <li className="w-1/3 lg:w-1/6 lg:border-r-2 border-[#DEDEDE] text-center py-4 hover:cursor-pointer">
+    <span className="font-semibold text-black text-sm">SKU CODE</span> 
+  </li>
                     <li className="w-1/3 lg:w-1/6 lg:border-r-2 border-[#DEDEDE] text-center py-4 hover:cursor-pointer">
                       <span className="font-semibold text-black text-sm">
                         PRICE
@@ -480,6 +502,7 @@ const Page = () => {
                           setStockItems((prev) => [newItem, ...prev]);
                           closeModal();
                         }}
+                        
                       />
                     </div>
                   </div>
@@ -488,33 +511,68 @@ const Page = () => {
             ) : (
               <Table className="border-collapse overflow-y-auto table-fixed">
                 <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="h-[50px]">
-                      {headerGroup.headers.map((header) => (
-                        <TableHead
-                          key={header.id}
-                          className={`px-4 py-2 text-center border-b border-r ${header.column.id === "name" ? "text-left w-[200px]" : ""} ${header.column.columnDef.meta?.className || ""}`}
-                        >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
+                  <TableRow className="h-[50px]">
+                    <TableHead className="px-4 py-2 w-2/7 text-left border-b border-r">
+                      ITEM NAME
+                    </TableHead>
+                    <TableHead className="px-4 py-2 w-2/7 text-left border-b border-r">
+                      SKU CODE
+                    </TableHead>
+                    <TableHead className="px-4 py-2 w-1/7 text-center border-b border-r">
+                      PRICE
+                    </TableHead>
+                    <TableHead className="px-4 py-2 w-1/7 text-center border-b border-r hidden sm:table-cell">
+                      QUANTITY
+                    </TableHead>
+                    <TableHead className="px-4 py-2 w-1/7 text-center border-b hidden sm:table-cell">
+                      ACTION
+                    </TableHead>
+                  </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id} className="h-[50px]">
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          className={`px-4 py-3 text-center border-r ${cell.column.id === "name" ? "text-left w-[200px] overflow-hidden" : ""} ${cell.column.columnDef.meta?.className || ""}`}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
+                  {Array.from({
+                    length: Math.max(rowsPerPage, stockItems.length),
+                  }).map((_, index) => {
+                    const item = stockItems[index] || null;
+                    return (
+                      <TableRow key={index} className="h-[50px]">
+                        <TableCell className="px-4 py-3 text-left border-r">
+                          {item ? item.name : ""}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-left border-r">
+                          {item ? item.sku_code : ""}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-center border-r">
+                          {item
+                            ? `${
+                                item.currency_code
+                              } ${item.buying_price?.toLocaleString()}`
+                            : ""}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-center border-r hidden sm:table-cell">
+                          {item ? item.quantity : ""}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-center hidden sm:table-cell">
+                          {item ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger>
+                                <MoreVertical className="cursor-pointer" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <DropdownMenuItem
+                                  onClick={() => handleEditClick(item)}
+                                >
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteClick(item)}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : (
+                            ""
                           )}
                         </TableCell>
                       ))}
