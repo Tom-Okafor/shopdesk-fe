@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import EditItemModal from "@/components/modal/edit-stock";
 import AddItemModal from "@/components/modal/add-item";
 import DeleteItem from "@/components/modal/delete-item";
+import PaginationFeature from "@/components/functional/paginationfeature";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,7 +75,8 @@ const Page = () => {
   };
 
   const { tableAreaRef, tableAreaHeight } = useTableAreaHeight();
-  const rowsPerPage = Math.round(tableAreaHeight / 55) - 3;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [isOpen, setIsOpen] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
@@ -94,6 +96,27 @@ const Page = () => {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const priceInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate pagination values
+  const totalItems = stockItems.length;
+  const totalPages = Math.ceil(totalItems / rowsPerPage);
+
+  // Ensure current page is valid when total pages changes
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  // Calculate which items to display based on current page and items per page
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const displayedItems = stockItems.slice(
+    startIndex,
+    Math.min(startIndex + rowsPerPage, totalItems)
+  );
+
+  // Calculate how many empty rows to add to maintain consistent table height
+  const emptyRowsCount = Math.max(0, rowsPerPage - displayedItems.length);
 
   useEffect(() => {
     setIsLoading(true);
@@ -145,212 +168,18 @@ const Page = () => {
     }
   };
 
-  const handleInlineEdit = useCallback((item: StockItem, field: keyof StockItem = "name") => {
-    setIsEditingTransition(item.id);
-    setEditedItem({ ...item });
-    setActiveField(field); 
-    setTimeout(() => setIsEditingTransition(null), 0); 
-  }, []);
-
-  const handleInputChange = useCallback(
-    (field: keyof StockItem, value: string) => {
-      if (editedItem) {
-        setEditedItem((prev) => ({
-          ...prev!,
-          [field]: field === "quantity" || field === "buying_price" ? Number(value) : value,
-        }));
-      }
-    },
-    [editedItem]
-  );
-
-  const handleSaveInline = useCallback(() => {
-    if (editedItem) {
-      setStockItems((prev) =>
-        prev.map((item) => (item.id === editedItem.id ? editedItem : item))
-      );
-      setEditedItem(null);
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
     }
-  }, [editedItem]);
+  };
 
-  useEffect(() => {
-    if (editedItem && activeField) {
-      switch (activeField) {
-        case "name":
-          nameInputRef.current?.focus();
-          break;
-        case "buying_price":
-          priceInputRef.current?.focus();
-          break;
-        case "quantity":
-          quantityInputRef.current?.focus();
-          break;
-      }
-    }
-  }, [editedItem, activeField]);
-
-  const columns: ColumnDef<StockItem>[] = useMemo(
-    () => [
-      {
-        accessorKey: "name",
-        header: "ITEM NAME",
-        size: 200,
-        maxSize: 200,
-        cell: ({ row }) => {
-          const isEditingThisRow = editedItem?.id === row.original.id;
-          const isTransitioning = isEditingTransition === row.original.id;
-
-          return (
-            <div className="inline-block w-full max-w-[200px] overflow-hidden">
-              {isTransitioning ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-              ) : isEditingThisRow ? (
-                <input
-                  ref={nameInputRef}
-                  value={editedItem?.name || ""}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSaveInline()}
-                  className="w-full max-w-[200px] min-w-0 border rounded px-2 py-1 text-left box-border"
-                />
-              ) : (
-                <span className="block truncate">{row.original.name}</span>
-              )}
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "sku",
-        header: "SKU",
-        cell: ({ row }) => {
-          const isEditingThisRow = editedItem?.id === row.original.id;
-          const isTransitioning = isEditingTransition === row.original.id;
-  
-          return (
-            <div className="inline-block w-full max-w-[200px] overflow-hidden">
-              {isTransitioning ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-              ) : isEditingThisRow ? (
-                <input
-                  value={editedItem?.sku || ""}
-                  onChange={(e) => handleInputChange("sku", e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSaveInline()}
-                  className="w-full max-w-[200px] min-w-0 border rounded px-2 py-1 text-left box-border"
-                />
-              ) : (
-                <span className="block truncate">{row.original.sku}</span>
-              )}
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "buying_price",
-        header: "PRICE",
-        cell: ({ row }) => {
-          const isEditingThisRow = editedItem?.id === row.original.id;
-          const isTransitioning = isEditingTransition === row.original.id;
-
-          return (
-            <div
-              className="inline-block w-[calc(100%-2rem)] max-w-[100px]"
-              onClick={() => !isEditingThisRow && handleInlineEdit(row.original, "buying_price")}
-            >
-              {isTransitioning ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-              ) : isEditingThisRow ? (
-                <input
-                  ref={priceInputRef}
-                  type="number"
-                  value={editedItem?.buying_price ?? ""}
-                  onChange={(e) => handleInputChange("buying_price", e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSaveInline()}
-                  className="w-full border rounded px-2 py-1 text-center"
-                />
-              ) : (
-                `${row.original.currency_code} ${row.original.buying_price?.toLocaleString()}`
-              )}
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "quantity",
-        header: "QUANTITY",
-        cell: ({ row }) => {
-          const isEditingThisRow = editedItem?.id === row.original.id;
-          const isTransitioning = isEditingTransition === row.original.id;
-
-          return (
-            <div
-              className="inline-block w-[calc(100%-2rem)] max-w-[60px]"
-              onClick={() => !isEditingThisRow && handleInlineEdit(row.original, "quantity")}
-            >
-              {isTransitioning ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-              ) : isEditingThisRow ? (
-                <input
-                  ref={quantityInputRef}
-                  type="number"
-                  value={editedItem?.quantity ?? ""}
-                  onChange={(e) => handleInputChange("quantity", e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSaveInline()}
-                  className="w-full border rounded px-2 py-1 text-center"
-                />
-              ) : (
-                row.original.quantity
-              )}
-            </div>
-          );
-        },
-        meta: { className: "hidden sm:table-cell" },
-      },
-      {
-        id: "actions",
-        header: "ACTION",
-        cell: ({ row }) => {
-          const item = row.original;
-          const isEditingThisRow = editedItem?.id === item.id;
-          const isTransitioning = isEditingTransition === row.original.id;
-          return (
-            <div className="inline-block w-[calc(100%-2rem)] max-w-[60px]">
-              {isTransitioning ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-              ) : isEditingThisRow ? (
-                <div className="flex justify-center items-center gap-2">
-                  <SaveAll
-                    className="cursor-pointer text-[#19A45B] w-[24px] h-[24px]"
-                    onClick={handleSaveInline}
-                  />
-                </div>
-              ) : (
-                <div className="flex justify-center items-center gap-2">
-                  <div className="flex items-center border-r border-[#DEDEDE] pr-2">
-                    <Edit
-                      className="cursor-pointer text-[#19A45B] w-[20px] h-[20px] hover:text-[#137e41]"
-                      onClick={() => handleInlineEdit(item)}
-                    />
-                  </div>
-                  <Trash2
-                    className="cursor-pointer text-red-500 w-[20px] h-[20px] hover:text-red-700"
-                    onClick={() => handleDeleteClick(item)}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        },
-        meta: { className: "hidden sm:table-cell" },
-      },
-    ],
-    [editedItem, isEditingTransition, handleInlineEdit, handleSaveInline]
-  );
-
-  const table = useReactTable({
-    data: stockItems.slice(0, rowsPerPage),
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
+  // Handle items per page change
+  const handleItemsPerPageChange = (count: number) => {
+    setRowsPerPage(count);
+    setCurrentPage(1);
+  };
 
   if (isLoading) {
     return (
@@ -499,7 +328,7 @@ const Page = () => {
                 </div>
               </div>
             ) : (
-              <Table className="border-collapse overflow-y-auto table-fixed">
+              <Table className="border-collapse overflow-y-auto">
                 <TableHeader>
                   <TableRow className="h-[50px]">
                     <TableHead className="px-4 py-2 w-2/7 text-left border-b border-r">
@@ -520,54 +349,54 @@ const Page = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Array.from({
-                    length: Math.max(rowsPerPage, stockItems.length),
-                  }).map((_, index) => {
-                    const item = stockItems[index] || null;
-                    return (
-                      <TableRow key={index} className="h-[50px]">
-                        <TableCell className="px-4 py-3 text-left border-r">
-                          {item ? item.name : ""}
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-center border-r">
-                          {"SKU-CODE"}
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-center border-r">
-                          {item
-                            ? `${
-                                item.currency_code
-                              } ${item.buying_price?.toLocaleString()}`
-                            : ""}
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-center border-r hidden sm:table-cell">
-                          {item ? item.quantity : ""}
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-center hidden sm:table-cell">
-                          {item ? (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger>
-                                <MoreVertical className="cursor-pointer" />
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                <DropdownMenuItem
-                                  onClick={() => handleEditClick(item)}
-                                >
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteClick(item)}
-                                >
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          ) : (
-                            ""
-                          )}
-                        </TableCell>
-                      ))}
+                  {displayedItems.map((item, index) => (
+                    <TableRow key={item.id} className="h-[50px]">
+                      <TableCell className="px-4 py-3 text-left border-r">
+                        {item.name}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-center border-r">
+                        {"SKU-CODE"}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-center border-r">
+                        {`${
+                          item.currency_code
+                        } ${item.buying_price?.toLocaleString()}`}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-center border-r hidden sm:table-cell">
+                        {item.quantity}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-center hidden sm:table-cell">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger>
+                            <MoreVertical className="cursor-pointer" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem
+                              onClick={() => handleEditClick(item)}
+                            >
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(item)}
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   ))}
+                  {/* Add empty rows to maintain table height if needed */}
+                  {emptyRowsCount > 0 &&
+                    Array.from({ length: emptyRowsCount }).map((_, index) => (
+                      <TableRow key={`empty-${index}`} className="h-[50px]">
+                        <TableCell className="px-4 py-3 text-left border-r"></TableCell>
+                        <TableCell className="px-4 py-3 text-center border-r"></TableCell>
+                        <TableCell className="px-4 py-3 text-center border-r"></TableCell>
+                        <TableCell className="px-4 py-3 text-center border-r hidden sm:table-cell"></TableCell>
+                        <TableCell className="px-4 py-3 text-center hidden sm:table-cell"></TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             )}
@@ -583,21 +412,17 @@ const Page = () => {
       />
 
       <div className="flex flex-col gap-2 mt-4">
-        <div hidden className="bg-[#DEE5ED] p-2 w-full lg:hidden">
-          <p className="text-gray-400 text-sm flex items-center gap-1 justify-center text-center">
-            You have <span className="text-black">{stockItems.length}</span>{" "}
-            stock (Displaying{" "}
-            <span className="text-black">{rowsPerPage}</span>{" "}
-            <Image
-              src="/icons/ArrowDropDown.svg"
-              alt=""
-              width={12}
-              height={12}
-              className="w-3 h-3"
-            />{" "}
-            per page)
-          </p>
+        <div className="bg-[#DEE5ED] p-2 flex items-center justify-between">
+          <PaginationFeature
+            totalItems={totalItems}
+            currentPage={currentPage}
+            itemsPerPage={rowsPerPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+          />
         </div>
+
         <p className="text-center mt-4">
           © {new Date().getFullYear()}, Powered by Timbu Business
         </p>
